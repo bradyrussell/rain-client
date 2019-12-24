@@ -11,6 +11,9 @@
 #include "ArchiveSaveCompressedProxy.h"
 #include "ArchiveLoadCompressedProxy.h"
 #include "hash.h"
+#include "CommandLine.h"
+#include "Engine/Engine.h"
+#include "Kismet/GameplayStatics.h"
 
 
 void UBPFL_RainAPI::API_Request(UObject* WorldContextObject, FString api, FString endpoint, FString api_key, TArray<uint8> data) {
@@ -28,7 +31,7 @@ void UBPFL_RainAPI::API_Request(UObject* WorldContextObject, FString api, FStrin
 	
 	request->SetHeader("Accept","application/json");
 	request->SetHeader("Cache-Control","no-cache");
-	request->SetHeader("Authorization","Bearer "+api_key);
+	if(api_key.IsEmpty()) request->SetHeader("Authorization","Bearer "+api_key);
 	
 	request->OnStaticRequestComplete.AddLambda([](UVaRestRequestJSON* request) {
 		int32 a = request->GetResponseCode();
@@ -39,7 +42,7 @@ void UBPFL_RainAPI::API_Request(UObject* WorldContextObject, FString api, FStrin
 	
 }
 
-UVaRestRequestJSON* UBPFL_RainAPI::Rain_Publish_CloudSave(UObject* WorldContextObject, FApiData Api, FCloudSaveData Save, TArray<uint8> Data, FString& URL) {
+UVaRestRequestJSON* UBPFL_RainAPI::Rain_CloudSave_Publish(UObject* WorldContextObject, FApiData Api, FCloudSaveData Save, TArray<uint8> Data, FString& URL) {
 	auto request = UVaRestRequestJSON::ConstructRequest(WorldContextObject);
 
 	request->SetVerb(ERequestVerb::POST);
@@ -50,7 +53,7 @@ UVaRestRequestJSON* UBPFL_RainAPI::Rain_Publish_CloudSave(UObject* WorldContextO
 
 	request->SetHeader("Accept","application/json");
 	request->SetHeader("Cache-Control","no-cache");
-	request->SetHeader("Authorization","Bearer "+Api.API_Key);
+	if(!Api.API_Key.IsEmpty()) request->SetHeader("Authorization","Bearer "+Api.API_Key);
 
 	Save.Name = UVaRestLibrary::PercentEncode(Save.Name);
 	Save.Format = UVaRestLibrary::PercentEncode(Save.Format);
@@ -64,7 +67,7 @@ UVaRestRequestJSON* UBPFL_RainAPI::Rain_Publish_CloudSave(UObject* WorldContextO
 	return request;
 }
 
-UVaRestRequestJSON* UBPFL_RainAPI::Rain_Retrieve_CloudSave(UObject* WorldContextObject, FApiData Api, int32 ID, FString& URL) {
+UVaRestRequestJSON* UBPFL_RainAPI::Rain_CloudSave_Retrieve(UObject* WorldContextObject, FApiData Api, int32 ID, FString& URL) {
 	auto request = UVaRestRequestJSON::ConstructRequest(WorldContextObject);
 
 	request->SetVerb(ERequestVerb::GET);
@@ -72,7 +75,7 @@ UVaRestRequestJSON* UBPFL_RainAPI::Rain_Retrieve_CloudSave(UObject* WorldContext
 
 	request->SetHeader("Accept","application/json");
 	request->SetHeader("Cache-Control","no-cache");
-	request->SetHeader("Authorization","Bearer "+Api.API_Key);
+	if(!Api.API_Key.IsEmpty()) request->SetHeader("Authorization","Bearer "+Api.API_Key);
 
 	const FString Endpoint = "save";
 	
@@ -81,7 +84,7 @@ UVaRestRequestJSON* UBPFL_RainAPI::Rain_Retrieve_CloudSave(UObject* WorldContext
 	return request;
 }
 
-UVaRestRequestJSON* UBPFL_RainAPI::Rain_List_CloudSaves(UObject* WorldContextObject, FApiData Api, FString& URL) {
+UVaRestRequestJSON* UBPFL_RainAPI::Rain_CloudSave_List(UObject* WorldContextObject, FApiData Api, FString& URL) {
 	auto request = UVaRestRequestJSON::ConstructRequest(WorldContextObject);
 
 	request->SetVerb(ERequestVerb::GET);
@@ -89,7 +92,7 @@ UVaRestRequestJSON* UBPFL_RainAPI::Rain_List_CloudSaves(UObject* WorldContextObj
 
 	request->SetHeader("Accept","application/json");
 	request->SetHeader("Cache-Control","no-cache");
-	request->SetHeader("Authorization","Bearer "+Api.API_Key);
+	if(!Api.API_Key.IsEmpty()) request->SetHeader("Authorization","Bearer "+Api.API_Key);
 
 	const FString Endpoint = "save";
 
@@ -98,7 +101,8 @@ UVaRestRequestJSON* UBPFL_RainAPI::Rain_List_CloudSaves(UObject* WorldContextObj
 	return request;
 }
 
-UVaRestRequestJSON* UBPFL_RainAPI::Rain_Retrieve_AccountData(UObject* WorldContextObject, FApiData Api, FString& URL) {
+
+UVaRestRequestJSON* UBPFL_RainAPI::Rain_GameSession_Verify(UObject* WorldContextObject, FApiData Api, int32 GameID, FString SessionKey, FString& URL) {
 	auto request = UVaRestRequestJSON::ConstructRequest(WorldContextObject);
 
 	request->SetVerb(ERequestVerb::GET);
@@ -106,11 +110,12 @@ UVaRestRequestJSON* UBPFL_RainAPI::Rain_Retrieve_AccountData(UObject* WorldConte
 
 	request->SetHeader("Accept","application/json");
 	request->SetHeader("Cache-Control","no-cache");
-	request->SetHeader("Authorization","Bearer "+Api.API_Key);
 
-	const FString Endpoint = "account";
+	if(!Api.API_Key.IsEmpty()) request->SetHeader("Authorization","Bearer "+Api.API_Key);
+	
+	const FString Endpoint = "gamesession/verify";
 
-	URL = FString::Printf(TEXT("%s%s"), *Api.API_URL, *Endpoint);
+	URL = FString::Printf(TEXT("%s%s/%d/%s"), *Api.API_URL, *Endpoint, GameID, *SessionKey);
 	request->SetURL(URL);
 	return request;
 }
@@ -210,4 +215,63 @@ FString UBPFL_RainAPI::Rain_HashBytes(TArray<uint8> Data) {
 
 void UBPFL_RainAPI::Rain_PrintHexBytes(TArray<uint8> Data) {
 	UE_LOG(LogTemp, Warning, TEXT("[PrintHexBytes] %s"), *BytesToHex(Data.GetData(), Data.Num()));
+}
+
+FString UBPFL_RainAPI::Rain_GameSession_GetFromOptions(TArray<FString> Options) {
+	for(auto&elem:Options) {
+		FString left,right;
+		if(elem.Split("=",&left,&right)) {
+			if(left.Equals("RAIN_SESSION", ESearchCase::IgnoreCase)) {
+				return right;
+			}
+		}
+	}
+	return FString();
+}
+
+void UBPFL_RainAPI::Rain_Matchmaking_JoinServerWithSession(UObject* WorldContextObject, FString Server, FString Session) {
+	UGameplayStatics::OpenLevel(WorldContextObject, FName(*Server), true, FString::Printf(TEXT("?RAIN_SESSION=%s"), *Session));
+}
+
+
+FString UBPFL_RainAPI::Rain_GameSession_GetFromLauncher() {
+	TArray<FString> Tokens, Switches;
+	FCommandLine::Parse(FCommandLine::Get(),Tokens, Switches);
+	return Rain_GameSession_GetFromOptions(Tokens);
+}
+
+UVaRestRequestJSON* UBPFL_RainAPI::Rain_GameSession_Begin(UObject* WorldContextObject, FApiData Api, int32 GameID, FString Username, FString Password, FString& URL) {
+	auto request = UVaRestRequestJSON::ConstructRequest(WorldContextObject);
+
+	request->SetVerb(ERequestVerb::GET);
+	request->SetContentType(ERequestContentType::x_www_form_urlencoded_url);
+
+	request->SetHeader("Accept","application/json");
+	request->SetHeader("Cache-Control","no-cache");
+
+	if(!Api.API_Key.IsEmpty()) request->SetHeader("Authorization","Bearer "+Api.API_Key);
+	
+	const FString Endpoint = "gamesession/begin";
+
+	URL = FString::Printf(TEXT("%s%s/%d/%s/%s"), *Api.API_URL, *Endpoint, GameID, *Username, *Password);
+	request->SetURL(URL);
+	return request;
+}
+
+UVaRestRequestJSON* UBPFL_RainAPI::Rain_GameSession_End(UObject* WorldContextObject, FApiData Api, int32 GameID, FString SessionKey, FString& URL) {
+	auto request = UVaRestRequestJSON::ConstructRequest(WorldContextObject);
+
+	request->SetVerb(ERequestVerb::GET);
+	request->SetContentType(ERequestContentType::x_www_form_urlencoded_url);
+
+	request->SetHeader("Accept","application/json");
+	request->SetHeader("Cache-Control","no-cache");
+
+	if(!Api.API_Key.IsEmpty()) request->SetHeader("Authorization","Bearer "+Api.API_Key);
+	
+	const FString Endpoint = "gamesession/end";
+
+	URL = FString::Printf(TEXT("%s%s/%d/%s"), *Api.API_URL, *Endpoint, GameID, *SessionKey);
+	request->SetURL(URL);
+	return request;
 }

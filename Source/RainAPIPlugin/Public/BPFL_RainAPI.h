@@ -31,22 +31,40 @@ UCLASS()
 class RAINAPIPLUGIN_API UBPFL_RainAPI : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
-
-	UFUNCTION(BlueprintCallable)
+public:
+	UFUNCTION(BlueprintCallable,  meta = (WorldContext = "WorldContextObject"))
 	static void API_Request(UObject* WorldContextObject, FString api, FString endpoint, FString api_key, TArray<uint8> data);
 
+	///////////////////////////////////////////////////
+	
+	UFUNCTION(BlueprintCallable,  meta = (WorldContext = "WorldContextObject"))
+	static UVaRestRequestJSON* Rain_CloudSave_Publish(UObject* WorldContextObject, FApiData Api, FCloudSaveData Save, TArray<uint8> Data, FString& URL);
+
+	UFUNCTION(BlueprintCallable,  meta = (WorldContext = "WorldContextObject"))
+	static UVaRestRequestJSON* Rain_CloudSave_Retrieve(UObject* WorldContextObject, FApiData Api, int32 ID, FString& URL);
+
+	UFUNCTION(BlueprintCallable,  meta = (WorldContext = "WorldContextObject"))
+	static UVaRestRequestJSON* Rain_CloudSave_List(UObject* WorldContextObject, FApiData Api, FString& URL);
+	
 	UFUNCTION(BlueprintCallable)
-	static UVaRestRequestJSON* Rain_Publish_CloudSave(UObject* WorldContextObject, FApiData Api, FCloudSaveData Save, TArray<uint8> Data, FString& URL);
+	static FString Rain_GameSession_GetFromLauncher();
+
+	UFUNCTION(BlueprintCallable,  meta = (WorldContext = "WorldContextObject"))
+	static UVaRestRequestJSON* Rain_GameSession_Begin(UObject* WorldContextObject, FApiData Api, int32 GameID, FString Username, FString Password, FString& URL);
+	
+	UFUNCTION(BlueprintCallable,  meta = (WorldContext = "WorldContextObject"))
+	static UVaRestRequestJSON* Rain_GameSession_End(UObject* WorldContextObject, FApiData Api, int32 GameID, FString SessionKey, FString& URL);
+	
+	UFUNCTION(BlueprintCallable,  meta = (WorldContext = "WorldContextObject"))
+	static UVaRestRequestJSON* Rain_GameSession_Verify(UObject* WorldContextObject, FApiData Api, int32 GameID, FString SessionKey, FString& URL);
 
 	UFUNCTION(BlueprintCallable)
-	static UVaRestRequestJSON* Rain_Retrieve_CloudSave(UObject* WorldContextObject, FApiData Api, int32 ID, FString& URL);
+	static FString Rain_GameSession_GetFromOptions(TArray<FString> Options);
 
-	UFUNCTION(BlueprintCallable)
-	static UVaRestRequestJSON* Rain_List_CloudSaves(UObject* WorldContextObject, FApiData Api, FString& URL);
-
-	UFUNCTION(BlueprintCallable)
-	static UVaRestRequestJSON* Rain_Retrieve_AccountData(UObject* WorldContextObject, FApiData Api, FString& URL);
-
+	UFUNCTION(BlueprintCallable,  meta = (WorldContext = "WorldContextObject"))
+	static void Rain_Matchmaking_JoinServerWithSession(UObject* WorldContextObject, FString Server, FString Session);
+	///////////////////////////////////////////////////
+	
 	UFUNCTION(BlueprintCallable)
 	static TArray<uint8> Rain_StringToBytes(FString Data);
 
@@ -70,6 +88,5 @@ class RAINAPIPLUGIN_API UBPFL_RainAPI : public UBlueprintFunctionLibrary
 
 	UFUNCTION(BlueprintCallable)
 	static void Rain_PrintHexBytes(TArray<uint8> Data);
-
-
+	
 };
