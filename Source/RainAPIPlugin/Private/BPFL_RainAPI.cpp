@@ -31,7 +31,7 @@ void UBPFL_RainAPI::API_Request(UObject* WorldContextObject, FString api, FStrin
 	
 	request->SetHeader("Accept","application/json");
 	request->SetHeader("Cache-Control","no-cache");
-	if(api_key.IsEmpty()) request->SetHeader("Authorization","Bearer "+api_key);
+	if(!api_key.IsEmpty()) request->SetHeader("Authorization","Bearer "+api_key);
 	
 	request->OnStaticRequestComplete.AddLambda([](UVaRestRequestJSON* request) {
 		int32 a = request->GetResponseCode();
